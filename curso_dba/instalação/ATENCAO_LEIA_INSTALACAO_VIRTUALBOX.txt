@@ -1,0 +1,17 @@
+Ola Caro(a) Aluno(a),
+
+Se houver alguma dificuldade em achar alguma funcionalidade no VIRTUAL BOX conforme demonstrado na aula frente a versão que baixou diretamente
+do site da ORACLE ou mesmo alguma dificuldade para baixar o instalador do VIRTUAL BOX do site da Oracle, 
+disponibilizei o instalador do VIRTUAL BOX como um recurso desta aula, compactado com zip. 
+
+Basta clicar no recurso disponibilizado na aula, que será feito um download do instalador para área de download do seu windows. 
+Depois copie para um local onde irá realizar a instalação. Descompacte o zip, clicando com botão direito do mouse sobre o arquivo, 
+selecione a opcao 7-Zip, Extrair para aqui...
+Salve o arquivo de instalador em alguma pasta e depois clique com botao direito do mouse sobre o arquivo, e selecine a opcao run as administrator ou 
+rode como administrador para instalar o VIRTUAL BOX, conforme video aula.
+
+- Versão de instalação do VIRTUAL BOX, disponivel como recurso na aula.
+  VirtualBox-6.1.32-149290-Win
+
+Atenciosamente
+Sandro

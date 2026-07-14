@@ -1,0 +1,40 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+/*==================================================================================
+ATIVIDADES ROTINEIRAS BÁSICAS DO DBA
+ATTACH E DETTACH
+==================================================================================*/
+USE [master]
+GO
+
+DROP DATABASE IF EXISTS [BASEHISTORICA]
+GO
+
+CREATE DATABASE [BASEHISTORICA]
+ ON  PRIMARY 
+( NAME = N'BASEHISTORICA', FILENAME = N'P:\Data\BASEHISTORICA.mdf' , SIZE = 10240KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
+ LOG ON 
+( NAME = N'BASEHISTORICA_log', FILENAME = N'L:\Log\BASEHISTORICA_log.ldf' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+
+GO
+
+-- DETACH - DESANEXANDO
+USE master;  
+GO  
+EXEC sp_detach_db @dbname = N'BASEHISTORICA';  
+GO 
+
+-- ATTACH - ANEXANDO
+-- 1 COPIAR OS ARQUIVOS DA ANTIGA PASTA PARA A NOVA PASTA
+CREATE DATABASE [BASEHISTORICA]   
+    ON (FILENAME = 'P:\BANCOSANTIGOS\BASEHISTORICA.mdf'),
+	   (FILENAME = 'P:\BANCOSANTIGOS\BASEHISTORICA_log.ldf')
+    FOR ATTACH;  
+GO 

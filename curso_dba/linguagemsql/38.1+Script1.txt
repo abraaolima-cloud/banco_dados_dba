@@ -1,0 +1,281 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+/*==============================================================
+TRIGGER           
+As Trigegrs são stored procedures especiais executados automaticamente 
+em resposta aos eventos de objeto de banco de dados (INSERT, UPDATE e DELETE nas tabelas.), 
+banco de dados e servidor. 
+==============================================================*/
+
+-- Exemplo de criacao de trigger. Vamos criar uma tabela que ira servir de log para 
+-- guardar todas as transacoes realizadas em uma tabela
+
+-- CRIANDO A TABELA QUE IRA GUARDAR OS DADOS DAS TRANSACOES REALIZADAS NA TABELA DE PRODUTO
+
+USE CLIENTES
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[produto_auditoria]') AND type in (N'U'))
+DROP TABLE [dbo].[produto_auditoria]
+GO
+
+CREATE TABLE produto_auditoria(
+    id INT IDENTITY PRIMARY KEY,
+    productid INT NOT NULL,
+    productname NVARCHAR(50) NOT NULL,
+    SupplierId INT NOT NULL,
+    UnitPrice decimal(12,2) NOT NULL,
+    package NVARCHAR(30) NOT NULL,
+    IsDiscontinued bit NOT NULL,
+    updatedat DATETIME NOT NULL,
+    operation CHAR(3) NOT NULL,
+    CHECK(operation = 'INS' or operation='DEL')
+);
+
+
+-- CRIANDO A TRIGGER NA TABELA PRODUTO
+
+CREATE TRIGGER [dbo].[trg_produto_auditoria]
+ON [dbo].[Product]
+AFTER INSERT, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO produto_auditoria(
+        productid, 
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+		IsDiscontinued,
+        updatedat, 
+        operation
+    )
+    SELECT
+        i.id,
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+        IsDiscontinued,
+        GETDATE(),
+        'INS'
+    FROM
+        inserted i
+    UNION ALL
+    SELECT
+       d.id,
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+        IsDiscontinued,
+        GETDATE(),
+        'DEL'
+    FROM
+        deleted d;
+END
+GO
+
+ALTER TABLE [dbo].[Product] ENABLE TRIGGER [trg_produto_auditoria]
+GO
+
+
+-- Vamos verificar a Trigger no SQL SERVER
+
+-- Testando a Trigger
+
+INSERT INTO product(
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+        IsDiscontinued)
+VALUES (
+    'PRODUTO X',
+    1,
+    1240,
+    1,
+    0);
+
+-- Vamos checar a tabela de log
+
+SELECT 
+    * 
+FROM 
+    produto_auditoria;
+
+
+-- Agora vamos testar a delecao de produto e ver o que ocorre
+
+select * from product where  productname = 'PRODUTO X'
+
+DELETE FROM 
+    product
+WHERE 
+   id = 79;
+
+
+-- Vamos checar a tabela de log
+
+SELECT 
+    * 
+FROM 
+    produto_auditoria;
+
+
+-- É POSSIVEL CRIAR TRIGGERS PARA SALVAR EM TABELAS PROCESSOS PARA REGISTRAR COMANDOS CREATE TABLES, ALTER VIEWS, DROP INDEX, GRANT, DENY, REVOKE, or UPDATE STATISTICS
+-- COMO EXEMPLO ABAIXO, MAS PARA ESTES CASOS QUE SERVEM COMO AUDITORIA É MELHOR OUTRO RECURSO DE AUDIT QUE SERA EXPLICADO MAIS A FRENTE NO CURSO
+
+CREATE TRIGGER trigger_name
+ON { DATABASE |  ALL SERVER}
+[WITH ddl_trigger_option]
+FOR {event_type | event_group }
+AS {sql_statement}
+
+CREATE TRIGGER trg_indexchanges
+ON DATABASE
+FOR	
+    CREATE_INDEX,
+    ALTER_INDEX, 
+    DROP_INDEX
+AS
+BEGIN
+
+
+-- Algumas vezes precisa desabilitar trigger de forma provisoria via script ou pelo ssms, clicando botao direito do mouse sobre trigger
+
+DISABLE TRIGGER [trg_produto_auditoria]
+ON product;
+
+INSERT INTO product(
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+        IsDiscontinued)
+VALUES (
+    'PRODUTO Y',
+    1,
+    1240,
+    1,
+    0);
+
+-- Vamos checar a tabela de log
+
+SELECT 
+    * 
+FROM 
+    produto_auditoria;
+
+
+-- Ativando novamente
+
+ENABLE TRIGGER [trg_produto_auditoria]
+ON product;
+
+INSERT INTO product(
+        productname,
+        SupplierId,
+        UnitPrice,
+        package,
+        IsDiscontinued)
+VALUES (
+    'PRODUTO Y',
+    1,
+    1240,
+    1,
+    0);
+
+-- Vamos checar a tabela de log
+
+SELECT 
+    * 
+FROM 
+    produto_auditoria;
+
+
+-- Se houver varias trigger em uma tabela pode desabilitar todas as trigger OU Ativar novamente.
+
+DISABLE TRIGGER ALL ON PRODUCT;
+
+ENABLE TRIGGER ALL ON PRODUCT;
+
+
+-- Para verificar todas as trggers que existem em um banco de dados
+
+USE CLIENTES
+GO
+SELECT  
+   *
+FROM 
+    sys.triggers  
+WHERE 
+    type = 'TR';
+
+== Para deletar uma trigger
+DROP TRIGGER IF EXISTS trg_produto_auditoria;
+
+
+/*===============================================================================================
+Você pode usar TRIGGERS para por exemplo realizar controles de logons que pode ser inserido em tabelas
+e assim rastrear tividade de logon, e até mesmo restringir logons ao SQL Server ou limitando o número de sessões 
+para um logon específico, restrigindo acesso para um client especifico ou determinado periodo.
+===============================================================================================*/
+
+-- Exemplo, restringir acesso ao SA apenas para acessar de forma do servidor.
+-- Crie esta trigger e tender acessar com a super conta sa de dentro do servidor e de fora.
+
+CREATE OR ALTER TRIGGER user_audit ON ALL SERVER
+    FOR LOGON
+    AS
+         BEGIN
+          IF (ORIGINAL_LOGIN() = 'sa') and HOST_NAME() = 'DBSRV1' -- se conectar como sa de dentro do servidor nao ira conseguir
+		  --IF (ORIGINAL_LOGIN() = 'sa') and HOST_NAME() <> 'DBSRV1' -- ou contrario
+                  --IF (ORIGINAL_LOGIN() = 'sa') and APP_NAME() like  'Microsoft SQL Server Management%' -- ou nao acessar com sa pelo managed studio, ou poderia colocar qq usuario que nao poderia acessar pelo managed studio apenas pela aplicacao,
+              BEGIN
+                rollback;
+              END;    
+         END;
+
+
+-- VERIFICAR QUAIS SESSOES ESTAO ATIVAS
+
+SELECT is_user_process, original_login_name, *
+FROM sys.dm_exec_sessions 
+where is_user_process=1
+ORDER BY login_time DESC
+GO
+
+-- VERIFICAR QUEM ESTA LOGADO COM SESSAO ATIVA NO MOMENTO E OUTROS DADOS QUE PODEM SER USADOS NA TRIGGER DE LOGON
+
+SELECT SUSER_SNAME() as username,APP_NAME() as appname ,
+HOST_NAME() as hostname ,@@SPID as spid,GETDATE() as datetimetoday, 
+SESSION_USER as sessionuser, ORIGINAL_LOGIN( ) originallogin
+
+-- OBS: SEMPRE USE E CAPTURE TAMBEM O ORIGINAL_LOGIN() NAS AUDIORIAS, pois outros users podem executar comandos como outro user através do método de IMPERSONATE
+-- e um usuário poderá ser acusado erradamente de ter executado um comando, quando foi outro que rodou com o user dele. Cuidado a quem da direito de db_onwer em uma 
+-- base de dados ou usuário de serviço de um sistema que roda com este privilégio, se esta senha for conhecida. Por padrao na auditoria do sql server já é gerado
+-- o ORIGINAL_LOGIN no campo session_server_principal_name da systable sys.fn_get_audit_file. Se gerar um audit em file, com uma leitura atraves de SELECT consegue
+-- verificar o que está sendo auditado. Vamos conversar sobre auditoria mais a frente no curso.
+
+-- Como uma boa regra de segurança, desabilite ou mude o nome do sa, porque hackers conhecem este user. Se desabilitar, garanta que terá pelo menos 1 user com sysadmin para
+-- gerenciar a instancia. Se perdeu a senha do sa ou se estiver desabilitado e nao tiver dentro da instancia sql server nenhum login com privilegio de sysadmin, tera que
+-- manualmente criar uma conta de sysadmin ou mesmo habilitar o sa e criar nova senha. Realize uma busca na internet que tem varios blobs que explica como pode fazer isto.
+
+-- DISABILITANDO A TRIGGER DE DELETANDO
+
+DISABLE TRIGGER user_audit ON ALL SERVER;
+DROP TRIGGER user_audit ON ALL SERVER;
+
+
+
+
+

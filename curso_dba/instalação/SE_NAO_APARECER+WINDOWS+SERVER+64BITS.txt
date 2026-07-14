@@ -1,0 +1,13 @@
+Ola Caro(a) Aluno(a),
+
+Se não aparecer windows 2019 (64-bit), ou qualquer opção de servidor 64 bits, é porque provavelmente a BIOS do seu computador
+veio de fábrica configurada para não rodar Máquinas virtuais, mas é fácil corrigir.
+
+Pesquise no google:
+"nao aparece windows 64 bits virtual box bios"
+
+Vejo por exemplo este link:
+https://alexribeirobr.wordpress.com/2017/11/24/virtualbox-nao-aparece-opcao-de-64-bits/
+
+Atenciosamente
+Sandro

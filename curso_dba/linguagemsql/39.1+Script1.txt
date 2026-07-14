@@ -1,0 +1,196 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+/*==============================================================
+FUNCTIONS        
+As funções ajudam a simplificar seu código. Por exemplo, você 
+pode ter um cálculo complexo que aparece em muitas consultas. 
+Em vez de incluir a fórmula em cada consulta, você pode criar 
+uma função que encapsula a fórmula e a usa em cada consulta.
+==============================================================*/
+
+-- Esta function sera utilizada como apoio a outras storage procedures. 
+-- A partir de parametros enviados, de quantidade de produtos, valor unitario de um produto
+-- e percentual de desconto, a function ira retornar desconto para para produto.
+
+CREATE FUNCTION FuncDesconto(
+    @qt INT,
+    @precounitario DEC(10,2),
+    @desconto DEC(4,2)
+)
+RETURNS DEC(10,2)
+AS 
+BEGIN
+    RETURN @qt * @precounitario * (1 - @desconto);
+END;
+
+-- Verificar no SSMS, banco de dados que voce criou a function (no meu caso banco de dados CLIENTES), menu programmbility, Functions, Scalar-valued-Functions, 
+-- que a function FuncDesconto foi criada. Poderá clicar com botao direito do mouse sobre a function e selecionar por exemplo a opcao modify para alterar a function.
+
+-- Para chamar a function passando os paramtros
+SELECT  dbo.FuncDesconto(10,100,0.1) valorvenda
+
+-- Este proximo exemplo, demonstra como utilizar a function como apoio na execucao de alguma instrucao SQL
+SELECT 
+    id, 
+    SUM(dbo.FuncDesconto(Quantity,unitprice,0.1)) valorvendafinal
+FROM 
+   orderitem
+GROUP BY 
+    id
+ORDER BY
+    valorvendafinal DESC;
+
+
+/*============================================================================================================================
+TABLE VARIABLES
+. Residem no banco de dados tempdb, não na memória.
+- Variáveis do tipo tabela são tipos de variáveis que permitem manter dados, que são semelhantes a tabelas temporárias.
+- Semelhante às variáveis locais, as variáveis do tipo tabela serao limpas no final da execucao do job ou processo que esta la.
+- As estatísticas ajudam o otimizador de queries do SQL SERVER a apresentar um bom plano de execução de consulta. Infelizmente, as variáveis 
+  do tipo tabela não contêm estatísticas. Portanto, você deve usar variáveis do tipo tabela para conter um pequeno número de linhas.
+============================================================================================================================*/
+
+DECLARE @produto_tabela TABLE (
+    productname VARCHAR(MAX) NOT NULL,
+    id INT NOT NULL,
+    precounitario DEC(11,2) NOT NULL
+);
+
+INSERT INTO @produto_tabela 
+SELECT
+    productname,
+    id,
+    unitprice
+FROM
+    product
+where [IsDiscontinued] = 0;
+
+SELECT
+    *
+FROM
+    @produto_tabela;
+GO
+
+
+/*============================================================================================================================
+TABLE VARIABLES in FUNCTIONS
+Usando variáveis do tipo tabela em funções definidas pelo usuário
+============================================================================================================================*/
+
+-- Criar uma funcao, que ira receber um parametro de retornar produtos discontinuados sim ou nao. Com o resultado irá alimentar 
+-- uma tabela chamada @produtosdiscontinuados 
+
+CREATE OR ALTER FUNCTION alimentatabelaproduto(
+    @isdiscontinued bit)
+RETURNS @produtosdiscontinuados TABLE
+(    
+id INT PRIMARY KEY,
+nomeproduto NVARCHAR(50)   
+)
+AS
+BEGIN
+ 
+INSERT INTO @produtosdiscontinuados (id, nomeproduto)
+select id, productname from product where IsDiscontinued = @isdiscontinued
+
+RETURN
+END
+GO
+
+-- chamar a funcao passando o parametro
+
+SELECT 
+    * 
+FROM 
+    alimentatabelaproduto(1);
+
+SELECT 
+    * 
+FROM 
+    alimentatabelaproduto(0);
+
+-- Verificar no SSMS, banco de dados que voce criou a function (no meu caso banco de dados CLIENTES), menu programmbility, Functions, Table-valued-Functions, 
+-- Poderá clicar com botao direito do mouse sobre a function e selecionar por exemplo a opcao modify para alterar a function.
+
+-- Para detelar uma funcao
+DROP FUNCTION IF EXISTS alimentatabelaproduto;
+
+/*============================================================================================================================
+TEMPORARY #TABLE 
+. Residem no banco de dados tempdb, não na memória.
+- Variáveis do tipo tabela são tipos de variáveis que permitem manter dados, que são semelhantes as variaveis do tipo tabela.
+- As tabelas temporarias serao limpas no final da sessao que estao sendo utilizadas.
+- Podem ser locais (visiveis apenas dentro da mesma sessao do usuario que a criou ou global.
+- As estatísticas ajudam o otimizador de queries do SQL SERVER a apresentar um bom plano de execução de consulta. As tabelas temporárias 
+ contêm estatísticas. Portanto, você deve usar tabelas temporárias para conter um grande número de linhas e neste sentido tem maior performance do que
+ as variaveis do tipo tabela. Pode ser criado index noncluster em tabelas temporarias.
+============================================================================================================================*/
+
+-- criando tabela temporaria local
+
+CREATE TABLE #tabelatemplocal (
+    product_name VARCHAR(MAX),
+    list_price DEC(10,2)
+);
+
+INSERT INTO #tabelatemplocal 
+SELECT
+    productname,
+    unitprice
+FROM 
+    product
+
+select * from #tabelatemplocal
+
+-- Abrir uma nova janela no querie analiser e executar select * from #tabelatemplocal
+-- retornar para a janela que criei a tabela temporaria e executar select * from #tabelatemplocal
+
+
+--  Fazer o mesmo para tabelo temporaria global
+
+CREATE TABLE ##tabelatempglobal (
+    product_name VARCHAR(MAX),
+    list_price DEC(10,2)
+);
+
+INSERT INTO ##tabelatempglobal 
+SELECT
+    productname,
+    unitprice
+FROM 
+    product
+
+select * from ##tabelatempglobal
+
+-- IR NO BANCO TEMPDB, Temporary Tables e verificar as duas tabelas criadas
+
+-- Para deletar tabela global
+
+drop ##tabelatempglobal
+
+
+-- Para criar uma stored procedure temporararia
+
+create procedure #procedurelocaltemp as
+select 'ola, sou uma procedure temporaria'
+
+exec #procedurelocaltemp 
+
+-- Veja a procedure no banco tempdb, Stored Procedure e veja a procedure criada dentro do banco tempdb
+-- Feche a sessao e verifique novamente se a stored procedure continua no banco tempdb
+
+
+
+
+
+
+
+
+

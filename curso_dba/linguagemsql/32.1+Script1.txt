@@ -1,0 +1,99 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+
+USE master
+GO
+
+CREATE DATABASE [CLIENTES]
+ ON  PRIMARY 
+( NAME = N'CLIENTESATUAIS', FILENAME = N'P:\Data\CLIENTES.mdf' , SIZE = 10240KB , FILEGROWTH = 65536KB )
+ LOG ON 
+( NAME = N'CLIENTES_log', FILENAME = N'L:\Log\CLIENTES_log.ldf' , SIZE = 8192KB , FILEGROWTH = 65536KB )
+GO
+
+ALTER DATABASE CLIENTES
+ADD FILEGROUP CLIENTESANTIGOSFG
+GO
+
+ALTER DATABASE CLIENTES
+ADD FILEGROUP CLIENTESFUTUROSFG
+GO
+
+ALTER DATABASE CLIENTES
+ADD FILE
+(
+    NAME = CLIENTESANTIGOS,
+    FILENAME = 'P:\DATA\CLIENTESANTIGOS.ndf',
+    SIZE = 5MB,
+    MAXSIZE = 100MB,
+    FILEGROWTH = 5MB
+)
+TO FILEGROUP CLIENTESANTIGOSFG;
+GO
+
+ALTER DATABASE CLIENTES
+ADD FILE
+(  
+    NAME = CLIENTESFUTUROS,
+    FILENAME = 'P:\DATA\CLIENTESFUTUROS.ndf',
+    SIZE = 5MB,
+    MAXSIZE = 100MB,
+    FILEGROWTH = 5MB
+)  
+TO FILEGROUP CLIENTESFUTUROSFG;
+GO
+
+USE clientes
+GO
+
+CREATE TABLE Clientes
+(ClienteID int IDENTITY PRIMARY KEY,
+ Nome nvarchar(50),
+ Cidade nvarchar(15),
+ UF nvarchar(2))
+
+ CREATE TABLE ClientesFuturos
+(ClienteID int IDENTITY PRIMARY KEY,
+ Nome nvarchar(50),
+ Cidade nvarchar(15),
+ UF nvarchar(2))
+ ON CLIENTESFUTUROSFG
+
+  CREATE TABLE ClientesAntigos
+(ClienteID int IDENTITY PRIMARY KEY,
+ Nome nvarchar(50),
+ Cidade nvarchar(15),
+ UF nvarchar(2))
+ ON CLIENTESANTIGOSFG
+
+ drop table ClientesAntigos;
+ drop table ClientesFuturos;
+ drop table Clientes;
+
+
+ALTER DATABASE CLIENTES
+REMOVE FILE CLIENTESANTIGOS
+GO
+ALTER DATABASE CLIENTES
+REMOVE FILE CLIENTESFUTUROS
+GO
+
+ALTER DATABASE CLIENTES
+REMOVE FILEGROUP CLIENTESANTIGOSFG
+GO
+ALTER DATABASE CLIENTES
+REMOVE FILEGROUP CLIENTESFUTUROSFG
+GO
+
+USE MASTER
+GO
+
+DROP DATABASE CLIENTES
+GO

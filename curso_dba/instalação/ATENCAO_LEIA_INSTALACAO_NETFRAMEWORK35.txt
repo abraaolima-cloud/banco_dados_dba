@@ -1,0 +1,18 @@
+Ola Caro(a) Aluno(a),
+
+Se houver alguma dificuldade ou problema na instalacao do framework 3.5 conforme explicado no video aula, poderá baixar do site da microsoft.
+
+https://www.microsoft.com/pt-pt/download/details.aspx?id=21
+
+Selecione a lingua do framework de acordo com a lingua do Windows Server. Como indicado, instale o windows server em ingles, sql server em ingles,
+managment studio em ingles e framework 3.5 em ingles.
+
+Caso, a MICROSOFT tenha mudado a pagina para download, pesquise no google net framework 3.5 e clique no link da Microsoft.
+
+Caso, ainda tenha problema. eu vou disponibilizar o NET framework 3.5 em ingles. Baixe o arquivo e clique duas vezes para 
+instalar, MAS SÓ EM ULTIMO CASO, FAÇA ESTA OPERAÇÃO, CASO TENHA ALGUM PROBLEMA OU NAO APARECA NO SERVER MANAGER PARA INSTALACAO.
+
+-- -----------------------------------------------------------------------------------------------------------------------------------------------
+
+Atenciosamente
+Sandro Servino

@@ -1,0 +1,17 @@
+Ola Caro(a) Aluno(a),
+
+Se houver alguma dificuldade em achar alguma funcionalidade no SSMS conforme demonstrado na aula frente a versão que baixou diretamente
+do site da Microsoft ou mesmo alguma dificuldade para baixar o instalador do SSMS do site da Microsoft, 
+disponibilizei o instalador do SSMS como um recurso desta aula, compactado com zip. 
+
+Basta clicar no recurso disponibilizado na aula, que será feito um download do instalador para área de download do seu windows. 
+Depois copie para um local onde irá realizar a instalação. Descompacte o zip, clicando com botão direito do mouse sobre o arquivo, 
+selecione a opcao 7-Zip, Extrair para aqui...
+Salve o arquivo de instalador em alguma pasta e depois clique com botao direito do mouse sobre o arquivo, e selecine a opcao run as administrator ou 
+rode como administrador para instalar o SSMS, conforme video aula.
+
+- Versão de instalação do SSMS, disponivel como recurso na aula.
+  SSMS-Setup-ENU
+
+Atenciosamente
+Sandro

@@ -1,0 +1,344 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+
+/*==================================================================================
+ATIVIDADES ROTINEIRAS BÁSICAS DO DBA
+SEGURANÇA: MASCARAR DADOS 
+Dynamic Data Masking
+
+-- Ira mascarar os dados de campos especificos no banco de dados.
+-- Pode ser usado para esconder algumas informacoes como por exemplo cartao de credito
+-- Nao faz a criptografia em nivel de banco de dados. Os dados na base de dados não são alterados
+-- A máscara de dados dinâmicos limita a exposição a dados confidenciais ao mascará-los para 
+   utilizadores sem privilégios.
+-- A máscara de dados dinâmica ajuda a evitar acessos não autorizados a dados confidenciais, 
+   ao permitir aos clientes designar a quantidade de dados confidenciais a revelar com um 
+   impacto mínimo na camada de aplicação. 
+-- Por exemplo, um representante de serviço num call center pode identificar um chamador 
+   confirmando vários caracteres do seu endereço de e-mail, mas o endereço de e-mail completo 
+   não deve ser revelado ao representante do serviço.
+-- IMPORTANTE:  Os utilizadores com privilégios de administrador estão sempre excluídos da máscara 
+   e vêem os dados originais sem qualquer máscara.
+
+-- • Utilize XXXX ou menos Xs se o tamanho do campo for inferior a 4 caracteres para tipos de dados de cordas (nchar, ntext, nvarchar).
+-- • Utilize um valor zero para tipos de dados numéricos (bigint, bit, decimal, int, money, numérico, pequeno, pequeno dinheiro, minúsculo, flutuante, real).
+-- • Utilize 01-01-1900 para tipos de dados de data/hora (data, data2, data, data, data, tempo de data, hora de data, hora certa).
+-- • Para a variante SQL, é utilizado o valor predefinido do tipo atual.
+-- • Para XML o documento <masked/> é utilizado.
+-- • Utilize um valor vazio para tipos especiais de dados (tabela de relógios, hierarquia, GUID, binário, imagem, tipos espaciais varbinários).
+
+-- Cartão de crédito	
+-- Método de mascaramento, que expõe os últimos quatro dígitos dos campos designados 
+-- e adiciona uma cadeia constante como um prefixo na forma de um cartão de crédito.
+-- XXXX-XXXX-XXXX-1234
+
+-- E-mail	
+-- Método de mascaramento, que expõe a primeira letra e substitui o domínio 
+-- por XXX.com usando um prefixo de corda constante sob a forma de um endereço de e-mail.
+-- aXX@XXXX.com
+
+-- Número aleatório	
+-- Método de mascaramento, que gera um número aleatório de acordo com os 
+-- limites selecionados e tipos de dados reais. Se os limites designados forem iguais, 
+-- então a função de máscara é um número constante.
+
+-- Texto personalizado	
+-- Método de mascaramento, que expõe os primeiros e últimos caracteres e adiciona uma 
+-- marcada de enchimento personalizada no meio. 
+==================================================================================*/
+
+-- VAMOS INICIAR NOSSO LABORATORIO USANDO NOSSO BANCO DE DADOS CLIENTE
+
+-- Esse script ira demostrar se existem campos mascarados
+USE CLIENTES
+GO
+SELECT c.name, tbl.name as table_name, c.is_masked, c.masking_function  
+FROM sys.masked_columns AS c  
+JOIN sys.tables AS tbl   
+    ON c.[object_id] = tbl.[object_id]  
+WHERE is_masked = 1;
+
+-- Vamos criar uma nova tabela de exemplo dentro do banco de dados CLIENTES
+-- ja colocando mascaras em alguns campos e vamos ja inserir alguns dados
+
+USE CLIENTES
+GO
+CREATE TABLE Membership  
+  (MemberID int IDENTITY PRIMARY KEY,  
+   FirstName varchar(100) MASKED WITH (FUNCTION = 'partial(1,"XXXXXXX",0)') NULL,  
+   LastName varchar(100) NOT NULL,  
+   Phone varchar(12) MASKED WITH (FUNCTION = 'default()') NULL,  
+   Email varchar(100) MASKED WITH (FUNCTION = 'email()') NULL);  
+  
+INSERT Membership (FirstName, LastName, Phone, Email) VALUES   
+('Roberto', 'Tamburello', '555.123.4567', 'RTamburello@contoso.com'),  
+('Janice', 'Galvin', '555.123.4568', 'JGalvin@contoso.com.co'),  
+('Zheng', 'Mu', '555.123.4569', 'ZMu@contoso.net');  
+SELECT * FROM Membership;
+
+-- e vamos rodar novamente o script para verificarmos e confirmarmos se os campos
+-- foram mascarados
+
+USE CLIENTES
+GO
+SELECT c.name, tbl.name as table_name, c.is_masked, c.masking_function  
+FROM sys.masked_columns AS c  
+JOIN sys.tables AS tbl   
+    ON c.[object_id] = tbl.[object_id]  
+WHERE is_masked = 1;
+
+-- e vamos rodar o comando abaixo para verificar que com alto privilegio como sysadmin
+-- todos os dados estao sem mascaras, ou seja, abertos para quem for por exemplo dba
+select * from Membership
+
+-- Vamos agora criar um novo usuário e vamos dar permissao de select nesta tabela
+CREATE USER TestUser WITHOUT LOGIN;  
+GRANT SELECT ON Membership TO TestUser;  
+  
+EXECUTE AS USER = 'TestUser';  
+SELECT * FROM Membership;  
+REVERT; 
+
+-- Este seguinte script altera uma coluna ja existente em uma tabela para acrescentar uma mascara
+ALTER TABLE Membership  
+ALTER COLUMN LastName varchar(100) MASKED WITH (FUNCTION = 'default()'); 
+
+-- Podemos dar permissao para um usuario especifico, grupo de usuarios vindo do active directory
+-- ou uma role para ter direito de ler dados nao mascarados
+GRANT UNMASK TO TestUser;  
+EXECUTE AS USER = 'TestUser';  
+SELECT * FROM Membership;  
+REVERT;   
+  
+-- Removendo a permissao de UNMASK para o usuario Testuser e assim ele volta a ver dados mascarados
+REVOKE UNMASK TO TestUser; 
+EXECUTE AS USER = 'TestUser';  
+SELECT * FROM Membership;  
+REVERT;
+
+-- E finalmente para remover mascara de um campo
+ALTER TABLE Membership   
+ALTER COLUMN LastName DROP MASKED; 
+
+EXECUTE AS USER = 'TestUser';  
+SELECT * FROM Membership;  
+REVERT;
+
+-- FIM, e agora vamos para proximo tema...
+
+
+-- AGORA VAMOS PARA OS METODOS MAIS SEGUROS USANDO CRIPTOGRAFIA EM NIVEL DE DADOS ...
+
+/*==================================================================================
+ATIVIDADES ROTINEIRAS BÁSICAS DO DBA
+SEGURANÇA: CRIPTOGRAFAR BANCO DE DADOS
+Transparent Data Encryption (TDE)
+
+- O TDE realiza a criptografia e a descriptografia de I/O em tempo real dos arquivos
+de dados e de log e protege os dados em disco e no backup. 
+- A Master, MSDB e Model nao sao criptogrfadas e a tempdb é criptografada quando
+um banco de dados do usuário é criptografada.
+- Os dados no buffer cash (memoria) e na rede nao sao criptografados, apenas no disco e backup.
+- Náo precisa alterar o sistema para acessar o banco de dados criptografado
+- Segundo a MS perda de 3 a 5% na performance do banco de dados
+- TDE é mais performatico do que a outra maneira de se criptografar banco de dados 
+no sql server (Always Encrypted) mas é menos seguro porque os dados em memória 
+nao ficam criptografados e o DBA ou usuário com privilegio de sysadmin consegue 
+acessar dados criptografafos.
+-  No Microsoft SQL Server, chaves e certificados são criados primeiro e, 
+em seguida, a criptografia deve ser definida como ON no banco de dados para que os
+ dados sejam criptografados. 
+
+ETAPAS
+1 Acessar o SSMS com a conta SA.
+2 Realizar um backup da base de dados que pretende criptografar
+3.Criar a chave principal (Master Key). 
+  A Master Key é a raiz hierárquica da criptografia do SQL Server, representando uma chave mestra, 
+  única para cada banco de dados, que é utilizada para proteger as chaves privadas dos certificados.
+4.Criar um certificado no banco de dados principal.
+  O certificado é o segundo objeto dentro da hierarquia de criptografia do SQL Server, e também é responsável 
+  por proteger as chaves do certificado e será usada para proteger o proximo nivel que sáo os dados das tabelas.
+5. Ativar a criptografia no banco de dados do usuário.
+
+OBS: Se precisar levar seu banco de dados criptografado para outra instancia, 
+vai precisar recriar seu certificado que fez backup com a senha usada.
+==================================================================================*/
+
+-- VAMOS CRIPTOGRAFAR BANCO CLIENTES
+-- IMPORTANTE: SE CONECTE NO SSMS COM A CONTA "SA" NA INSTANCIA PRIMARIA ONDE ESTA O BANCO DE DADOS QUE SERA CRIPTOGRAFAO E ONDE IRÁ CRIAR A MASTER KEY E CERTIFICADO
+-- Se nao se lembra da senha do SA ou esta conta esta desabilitada por questoes de segurança, conecte com uma conta com privilegio sysadmin, altere a senha do SA
+-- e conecte novamente na instancia SQL como SA
+
+-- 1. Criar uma chave principal com uma senha, preferencialmente forte
+USE master;
+GO
+-- DROP MASTER KEY SE EXISTIR PARA LABORATORIO
+CREATE MASTER KEY
+ENCRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak1';
+
+-- 2. Verificar a chave principal de dados e a chave principal de serviço
+SELECT name KeyName,
+ symmetric_key_id KeyID,
+ key_length KeyLength,
+ algorithm_desc KeyAlgorithm
+FROM sys.symmetric_keys;
+
+-- 3. Criar o certificado no banco de dados principal
+-- DROP CERTIFICATE SE EXISTIR PARA LABORATORIO DROP CERTIFICATE MeuCertificadoInstanciaXPTO
+CREATE CERTIFICATE MeuCertificadoInstanciaXPTO
+WITH SUBJECT = 'Nome do Ceritificado ou o objetivo do certificado'
+
+-- 4. Verificar o certificado
+SELECT name CertName,
+  certificate_id CertID,
+  pvt_key_encryption_type_desc EncryptType,
+  issuer_name Issuer
+FROM sys.certificates
+WHERE name  = 'MeuCertificadoInstanciaXPTO';
+
+-- 5. Criar a chave de criptografia de banco de dados do usuário
+USE CLIENTES;
+GO
+-- DROP DATABSE ENCRYPTION KEY SE EXISTIR PARA LABORATORIO DROP DATABASE ENCRYPTION KEY
+CREATE DATABASE ENCRYPTION KEY
+WITH ALGORITHM = AES_256
+ENCRYPTION BY SERVER CERTIFICATE MeuCertificadoInstanciaXPTO;
+
+-- iRA APARECER UMA MENSAGEM PARA:
+-- Fazer um backup de certificados e chaves privadas. 
+
+-- 6. Verificar a chave de criptografia do banco de dados
+SELECT DB_NAME(database_id) DbName,
+encryption_state EncryptState,
+key_algorithm KeyAlgorithm,
+key_length KeyLength,
+encryptor_type EncryptType
+FROM sys.dm_database_encryption_keys;
+/*==========
+0 : No database encryption key present, no encryption
+1 : Unencrypted
+2 : Encryption in progress
+3 : Encrypted
+4 : Key change in progress
+5 : Decryption in progress
+6 : The certificate or asymmetric key encrypting the DEK is being changed
+==========*/
+
+-- 7. Ativar o banco de dados para criptografia
+ALTER DATABASE CLIENTES
+SET ENCRYPTION ON;
+GO
+
+SELECT DB_NAME(database_id) DbName,
+  encryption_state EncryptState,
+  key_algorithm KeyAlgorithm,
+  key_length KeyLength,
+  encryptor_type EncryptType
+FROM sys.dm_database_encryption_keys;
+
+-- Agora sim o banco esta criptografado e ativo, inclusive o Tempdb
+
+-- 8. Fazer um backup do certificado e da chave principal
+-- Faça um backup do certificado e das chaves, de preferência, logo depois 
+-- que criá-los. Isso sera necessario para você ter acesso ao banco de dados protegido pela 
+-- TDE se migrar a base de dados criptografada para um servidor diferente.
+
+-- 8.1 Faça backup da SMK (Service Master Key - Chave Principal de Serviço). 
+-- Especifique um local de pasta de backup para as chaves privadas armazenadas em backup.
+Use master;
+GO
+BACKUP SERVICE MASTER KEY 
+TO FILE = 'P:\chaves\SvcMasterKey.key'
+ENCRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak1'
+
+-- 8.2 Faça backup da DMK (Data Master Key - Chave Principal de Dados). 
+-- Execute a seguinte consulta para fazer um backup: 
+BACKUP MASTER KEY 
+TO FILE = 'P:\chaves\DbMasterKey.key'
+ENCRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak1'
+
+-- 8.3 Fazer backup do certificado
+BACKUP CERTIFICATE MeuCertificadoInstanciaXPTO
+TO FILE = 'P:\chaves\ProductDBNameCert.cer'
+WITH PRIVATE KEY(
+ FILE = 'P:\chaves\ProductDBNameCert.prvk',
+ ENCRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak1'
+);
+
+--9. fazer um novo backup do banco criptografado 
+BACKUP DATABASE [CLIENTES] TO  DISK = N'P:\Backup\bkclienteCRIPTOGRAFADO' 
+WITH  COPY_ONLY, NOFORMAT, NOINIT,  NAME = N'CLIENTES-Full Database Backup', 
+SKIP, NOREWIND, NOUNLOAD,  STATS = 10
+GO
+
+-- 10. Tentar agora Restaurar o backup do banco de dados criptografado no servidor destino em uma nova instancia sql
+-- DBSRV1\FILIAL
+-- IMPORTANTE: SE CONECTE NO SSMS COM A CONTA "SA" NA INSTANCIA SECUNDARIA ONDE IRA RESTAURAR O BACKUP DO BANCO CRIPTOGRAFADO
+
+USE [master]
+RESTORE DATABASE [CLIENTES] FROM  DISK = N'P:\Backup\bkclienteCRIPTOGRAFADO' 
+WITH  FILE = 1,  NOUNLOAD,  REPLACE,  STATS = 5
+GO
+--FUNCIONOU OU APARECEU UMA MENSAGEM DE ERRO PEDINDO O CERTIFICADO?
+
+Msg 33111, Level 16, State 3, Line 2
+Cannot find server certificate with thumbprint '0x784CE87F1295E0D2B5F962BAF1711BE4270852B4'.
+Msg 3013, Level 16, State 1, Line 2
+RESTORE DATABASE is terminating abnormally.
+
+-- 11.1 Criar uma chave principal no servidor alvo ou de destino
+
+USE master;
+GO
+CREATE MASTER KEY
+ENCRYPTION BY PASSWORD = 'PASSMasterKeyNa@prec1saSERmesmaMASsalveaSenha!'
+
+-- 11.2 Criar o certificado usando os arquivos de certificado armazenados em backup 
+-- do servidor de origem. No nosso caso, retornar os arquivos de certificados deletados na pasta
+-- Se levar para outro servidor, copie por exemplo os certificados para uma pasta no novo servidor
+-- e rode o comando abaixo para recriar o certificado lendo os arquivos desta pasta.
+
+-- tente subir com uma senha e nome do certificado errados ...
+CREATE CERTIFICATE NAOERAESTENOMEDOCERTIFICADO
+FROM FILE = 'P:\chaves\ProductDBNameCert.cer'
+WITH PRIVATE KEY(
+FILE = 'P:\chaves\ProductDBNameCert.prvk',
+DECRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak')
+
+Msg 15208, Level 16, State 6, Line 1
+The certificate, asymmetric key, or private key file is not valid or does not exist; or you do not have permissions for it.
+
+-- agora com o nome correto do certificado e com a senha correta apontando para o local onde estao os certificados
+
+CREATE CERTIFICATE MeuCertificadoInstanciaXPTO
+FROM FILE = 'P:\chaves\ProductDBNameCert.cer'
+WITH PRIVATE KEY(
+FILE = 'P:\chaves\ProductDBNameCert.prvk',
+DECRYPTION BY PASSWORD = 'c0loque_1_senha!F@rteak1')
+-- Se aparecer ainda a mensagem, verifique:
+-- 1. O usuario de servico do sql server da instancia sql server secundaria (NT Service\MSSQL$FILIAL ou o user que criou) tem permissao de acesso aos arquivos do certificado 
+-- que estao na pasta? De permissao full control nestes arquivos ProductDBNameCert.cer, ProductDBNameCert.prvk para o usuario de servico do sql server da instancia sql server
+-- que ira subir o backup do banco ou ira atachar o mdf.
+
+-- Devera usar a mesma senha que foi usada para criptografar o certificado senao
+-- nao vai descriptografar o certificado e nao vai funcionar
+
+-- 11.3 RESTAURAR O BACKUP DO SEU BANCO JA CRIPTOGRAFADO NA NOVA INSTANCIA SQL SERVER
+USE [master]
+RESTORE DATABASE [CLIENTES] FROM  DISK = N'P:\Backup\bkclienteCRIPTOGRAFADO' 
+WITH  FILE = 1,  MOVE N'CLIENTESATUAIS' TO N'P:\Data\CLIENTES3.mdf',  
+MOVE N'CLIENTES_log' TO N'L:\Log\CLIENTES_log3.ldf',  NOUNLOAD,  REPLACE,  STATS = 5
+GO
+
+-- 11.4 E FINALMENTE ACESSAR O BANCO DE DADOS E AS TABELAS. FAZER BACKUP DA BASE DE DADOS NO NOVO SERVIDOR E GUARDAR AS CHAVES E CERTIFICADOS E AS SENHAS.
+
+-- FAZER UM TESTE DE ACESSO AO BANCO DE DADOS DE FORA DA VM, ATRAVES DO SSMS. VAMOS VER A DIFERENÇA PARA OUTRA FORMA DE PROTEGER OS DADOS, INCLUSIVE DO SA E SYSADMIN.
+
+-- A ultima forma de protecao aod dados, que inclusive é a forma mais segura atualmente é o Always Encrypted que será demonstrado na proxima aula.

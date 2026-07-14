@@ -1,0 +1,14 @@
+Ola Caro(a) Aluno(a),
+
+O arquivo de instalação SQLServer2019-x64-ENU-Dev.iso que voce baixou nas primeiras aulas(download SQL SERVER), já traz o SQL SERVER em ingles. Apenas copie este arquivo
+para dentro da pasta compartilhada da sua máquina virtual criada que irá receber o SQL SERVER. 
+
+Depois de copiado, para dentro da VM do banco de dados, clique duas vezes no nome do arquivo, irá aparecer o programa SETUP. Clique com o botão direito do mouse
+sobre o programa SETUP e selecione a opção "run as administrator" para iniciar a instalação com privilegios de administrador.
+
+Dai em diante, siga as instruções de instalação conforme a video aula.
+
+-- -----------------------------------------------------------------------------------------------------------------------------------------------
+
+Atenciosamente
+Sandro Servino

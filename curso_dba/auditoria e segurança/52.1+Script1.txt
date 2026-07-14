@@ -1,0 +1,494 @@
+/*==================================================================================
+Curso: SQL SERVER 2019
+https://www.udemy.com/course/draft/3957796/?referralCode=FB10D369E786D9FE8A48
+
+Instrutor: Sandro Servino
+https://www.linkedin.com/in/sandroservino/?originalSubdomain=pt
+https://filiado.wixsite.com/sandroservino
+==================================================================================*/
+
+
+/*==================================================================================
+ATIVIDADES ROTINEIRAS BÁSICAS DO DBA
+SEGURANÇA: CRIPTOGRAFAR BANCO DE DADOS
+Always Encrypted
+
+- Always Encrypted é uma tecnologia de encriptação de dados que ajuda a proteger dados 
+sensíveis em repouso no servidor, durante o movimento entre cliente e servidor, e 
+enquanto os dados estão em uso, garantindo que os dados sensíveis nunca aparecem como 
+texto simples dentro do SQLSERVER. 
+- É possivel criptografar campos especificos de uma tabela.
+- Depois de encriptar dados, apenas as aplicações do cliente ou servidores de aplicações 
+que tenham acesso às chaves podem aceder a dados de texto simples.
+- É possivel proteger as informaçoes (campos) que estao criptografados até mesmo do sa, db_owner
+  e de usuarios com permissoes de sysadmin.
+==================================================================================*/
+
+-- VAMOS INICIAR NOSSOS TRABALHOS
+
+-- 1. Selecionar o banco CLIENTES e tabela Customer pelo ssms e vamos ver o conteudo dos dados. Vai verificar que os campos nao estao com os dados criptografados.Feche a tabela.
+-- 2. Selecione a opcao Security e depois Always Encrypted Keys. Com botao direito do mouse selecione a opcao New Column Master Key.
+-- 2.1  Entre nome para a Master Key como por exemplo SQLCLIENTEDBCertificate
+-- 2.2  Especifique a loja onde ira guardar a Master Key (Para o nosso laboratório, escolha Windows Certificates), or Azure Key Vault se quiser guardar a chave na Azure, mas neste caso 
+--      precisa criar antes um Vault (cofre) para guardar esta senha. Vault é muito usado na azure para guardar backups dos bancos de dados. 
+--      OBS:
+--      Local machine certificate store
+--            This type of certificate store is local to the computer and is global to all users on the computer. 
+--            This certificate store is located in the registry under the HKEY_LOCAL_MACHINE root.
+
+--      Current user certificate store
+--             This type of certificate store is local to a user account on the computer. 
+--              This certificate store is located in the registry under the HKEY_CURRENT_USER root.
+
+-- 2.3  Clica no botao Generate certificate e depois no botao OK.
+-- 2.4  Agora, selecione a opcao New Column Encryption Keys 
+-- 2.5  Entre com o nome para column encryption key como por exemplo SQLCLIENTEDBCEK
+-- 2.6  Selecione a Column Master Key SQLCLIENTEDBCertificate por exemplo
+-- 2.7  Clique OK
+-- 2.8  Verifique agora Always Encrypted Keys
+
+--   Foi criado o certificado no proprio servidor do sql server que devera ser exportado para os outros servidores, como por exemplo servidor de aplicacao, que irá acessar os dados criptografados
+--   e que por ter o certificado, conseguirá descriptografar os dados para os sistemas que iráo acessar estes dados.
+
+-- 3. Agora vamos criptografar os dados especificos nas tabelas do banco de dados CLIENTES. 
+--    Com o botao direito do mouse vamos selecionar a opcao para criptografar os campos das tabelas (Encrypt Column).
+
+-- 4. Apos terminar a criptografia, verificar o conteudo da tabela e verificar na loja dos certificados do windows o certificado criado e salvo. Se quiser verificar as colunas,
+-- com os dados nao criptografados, desconecte da sessao e conecte novamente no ssms, clique no botao options e na aba Aditional Connections Parameters digite column encryption setting = enabled 
+-- Só irá conseguir ver os dados originais porque está dentro da vm ou na maquina fisica, onde estao fisicamente salvos os certificados. 
+-- Se acessar o banco de dados via ssms, do seu computador pessoal que nao tenha o mesmo certificado, fora da VM ou servidor fisico, vera
+-- os campos com os dados criptografados, porque o certificado esta apenas na vm do banco de dados, mesmo que seja SA ou tenha privilegios de SYSADMIN. Se tentar conectar do seu 
+-- computador pessoal, colocando column encryption setting = enabled no ssms e tentar acessar a tabela criptografada, receberá um erro de falta do certificado no seu computador.
+
+-- E COMO PODEMOS VER O CERTIFICADO QUE ESTÁ DENTRO DA VM E EXPORTAR PARA UMA OUTRA VM, COMO PARA UM SERVIDOR DE APLICACAO OU MESMO PARA NOTEBOOK DO DBA?
+
+-- 4.1 Ir ao DOS(usando o comando CMD) do servidor do banco de dados SQL SERVER e executar certlm.msc. Acesse como administrador.
+-- 4.2 A ferramenta Certificate Manager (loja dos certificados do windows) para o dispositivo local é exibida.
+-- 4.3 Para exibir seus certificados, em certificados – computador local -> pessoal, no painel esquerdo, expanda o diretório do tipo de certificado que você deseja exibir.
+-- 4.3.1 Abra o certificado e na aba Details copie a informacao que esta na coluna Thumbprint como por exemplo "939022f2c1b19e67f46a529aba5204a0504e504e"
+-- 4.3.2 Clique com botao direito sobre o certificado e escolha a opcao All Tasks -> Export->Yes, export private key-> clique next, coloque a password-> selecione a pasta para salvar o certificado.
+--       Va a pasta onde salvou o certificado (se foi no seu computador pessoal por exemplo), copie e cole no servidor que ira receber o certificado, por exemplo, um servidor de aplicacao que roda a aplicacao que acesso o banco criptografado.
+--       Voce devera exportar o certificado para o SERVIDOR DE APLICACAO. Inclua uma senha, mas no caso do nosso laboratorio, ira exportar para meu computador pessoal para tentar acessar os dados dcriptografados este computador. Isto irá simular como se fosse seu servidor de aplicacao.
+--       A ideia aqui é que apenas este servidor de aplicacao, além do servidor de banco de dados, tenha acesso ao certificado que ira em tempo real, descriptogrfar os dados criptogrados e ira mostrar o dado real dentro da 
+--       aplicacao e o sistema ira criptografar os dados novos e enviar para o banco de dados. Ainda devera fazer uma mudanca simples no arquivo da aplicacao que conecta no banco.
+-- 4.3.3 No servidor de aplicacao devera acessar o loja de certificados do windows server, com o comando certlm.msc, e devera importar o arquivo que foi salvo em alguma pasta.
+--       Deve clicar na opcao – computador local -> pessoal (personal->certificates) e clicar com botao direito do mouse nos certificados, escolher all tasks->import. Selecionar a pasta 
+--       onde salvou o certificado, colocar a senha gerada para exportar o certificado -> clicar next -> clicar next e OK. Verificar o certificado importado e verificar se o codigo Thumbprint é igual ao gerado.Se for diferente repita a operacao de criar o certificado na origem, exporte e importe.
+-- 4.4 Tente conectar agora de dentro da vm onde esta o certificado. Coloque a opcao column encryption setting = enabled no botao options. 
+--     Verifique os dados da tabela customer. Vera que consegue ver os dados com privilegio de sysadmin.
+-- 4.4.1 Agora, saia da VM e tente acessar o servidor do sql serve pelo ssms, conectando com a conta sa, com e sem a opcao column encryption setting = enabled, e veja se consegue ver os dados sem a criptografia.
+
+-- 5 A proxima etapa deve ser feita no codigo da aplicacao, geralmente em um arquivo de conexao com o banco de dados. Esta aplicacao deve estar no mesmo vm onde esta o certificado.
+-- 5.1 Devera alterar o codigo de conexao (ex: web.config), conforme este exemplo descrito no site da Microsoft:
+       
+       https://docs.microsoft.com/pt-pt/azure/azure-sql/database/always-encrypted-certificate-store-configure
+
+-- exemplo em c#
+// Instantiate a SqlConnectionStringBuilder.
+SqlConnectionStringBuilder connStringBuilder =
+    new SqlConnectionStringBuilder("replace with your connection string");
+// Enable Always Encrypted.
+connStringBuilder.ColumnEncryptionSetting =
+    SqlConnectionColumnEncryptionSetting.Enabled;
+
+-- SE DESEJAR REMOVER OS DADOS CRIPTOGRAFADOS E OS CERTIFICADOS DO SERVIDOR:
+
+-- 6. Para remover as campos criptografados e deletar os certificados criados:
+-- 6.1 Vamos no query analiser verificar os certificados criados com os comandos select * from sys.column_encryption_keys e select * from sys.column_master_keys. 
+--     Guarde o resultado porque ira usar para deletar o certificado e masterkey, se desejar.
+-- 6.2 Para remover o always scripted das colunas das tabelas, basta acessar no banco de dados, a tabela que tem campos criptografados, DENTRO DA VM, clicar com botao direito do mouse sobre a tabela
+--    e selecionar a opcao Tasks->Scrypt Colunm-> selecionar as colunas que quer retirar a criptografia e selecionar a opcao PlainText na coluna Encryption Type-> next -> next. 
+--    Quando terminar o processo as colunas nao estarao mais criptografadas. Pode fazer um select na tabela e verá.
+-- 6.3 Para deletar o certificado e master key devera executar os seguintes comandos:
+--     DROP COLUMN ENCRYPTION KEY <NOME DO CERTIFICADO GUARDADO>
+--     DROP COLUMN MASTER KEY <NOME MASTER KEY GUARDADO>
+-- 6.3 Executar novamente o comando para checar se foram deletados select * from sys.column_encryption_keys e select * from sys.column_master_keys
+--     Podera ainda deletar pela SSMS de forma grafica, a chave e o certificado. Expanda o banco de dados que tem dados criptografados, va para aba security, depois 
+--     Always Encrypted Key, e nas abas abaixo, delete o certificado que esta na aba Column Encryption Keys e depois Column Master Key. Para deletar o certificado da 
+--     loja do windows, va para o DOS, execute certlm.msc. Ache o certificado, na pasta que foi criada, provavelmente pessoal, clique no certificado com botao direito do mouse e escolha delete.
+
+-- 6.4 E nao esquecer que se removeu o certificado, precisa alterar o arquivo de configuracao da aplicacao para retirar a opcao de criptografia, senao o site dará erro.
+
+-- FIM Always Encrypted
+
+
+/*==================================================================================
+SEGURANÇA: CRIPTOGRAFANDO DADOS EM UM CONTEXTO DE DEV
+Criptografia Simetrica e Assimetrica em nivel de coluna
+A criptografia simetrica é menos segura do que a criptografia assimetrica por que 
+a chave usada para criptografar uma informacao é a mesma para descriptografar,
+entao se a chave for roubada de quem criptograda ou quebrada com ataque força bruta, 
+consegue descriptografar a informacao. 
+A criptografia assimetrica ja usa duas chaves, para criptografar (chave publica) e 
+descriptografar (chave privada) o que torna relaticamente mais segura.
+
+-- Criptografia Simétrica 
+==================================================================================*/
+
+-- VANOS AGORA TRABALHAR EM UM LABORATÓRIO, ONDE IREMOS TER CONTROLE PARA CRIPTOGRAFAR COLUNAS
+-- PODEMOS CRIAR CODIGO DENTRO DE UMA STORED PROCEDURE PARA CRIPTOGRAFAR DADOS E DESCRIPTOGRAFAR NO CONTEXTO DA SESSÁO DESTA SETORED PROCEDURE
+-- FOGE UM POUCO DO CONTEXTO DE UM DBA. Mais utilizado dentro de um contexto de DEV, mas vamos conhecer um pouco mais.
+
+-- VAMOS CRIAR UMA NOVA CHAVE PRIMARIA
+CREATE MASTER KEY ENCRYPTION
+BY PASSWORD = 'senhaF@RTEAqu1' 
+GO
+
+-- VAMOS CRIAR UM NOVO CERTIFICADO
+CREATE CERTIFICATE MeuNOVOCertificado123
+ENCRYPTION BY PASSWORD = 'SENHA@1234forteAQU1'
+WITH SUBJECT = 'Meu Certificado novo'
+GO
+
+-- VAMOS CRIAR UMA NOVA CHAVE SIMETRICA
+CREATE SYMMETRIC KEY MinhaNovaChave
+WITH ALGORITHM = AES_256
+ENCRYPTION BY CERTIFICATE MeuNOVOCertificado123
+
+-- VAMOS CRIAR UMA TABELA PARA GUARDAR SENHAS CRIPTOGRAFADAS
+
+USE CLIENTES
+GO
+
+CREATE TABLE users
+(
+   IDuser INT IDENTITY,
+   [LOGIN] VARCHAR(10),
+   password VARBINARY (MAX)
+)
+GO
+
+-- VAMOS CONSULTAR AS CHAVE E CERTIFICADO QUE FOI CRIADO
+SELECT * FROM SYS.symmetric_keys
+GO
+SELECT * FROM SYS.certificates
+GO
+
+-- Antes de usar a chave simétrica para criptografar o campo password da tabela users devemos abrir essa chave
+OPEN SYMMETRIC KEY MinhaNovaChave
+DECRYPTION BY CERTIFICATE MeuNOVOCertificado123
+WITH PASSWORD = 'SENHA@1234forteAQU1'
+
+-- Agora, para inserir no campo password o valor criptografado, vamos utilizar a função ENCRYPTBYKEY. Temos que informar como primeiro parâmetro a GUID da chave que abrimos
+DECLARE @GUID UNIQUEIDENTIFIER = (SELECT KEY_GUID('MinhaNovaChave'))
+INSERT INTO users VALUES ('Ana', ENCRYPTBYKEY(@GUID, 'anapass1234'))
+GO
+
+SELECT * FROM users
+
+CLOSE SYMMETRIC KEY MinhaNovaChave
+
+-- Para descriptografar o dado devemos utilizar a funcao DECRYPTBYKEY
+
+OPEN SYMMETRIC KEY MinhaNovaChave
+DECRYPTION BY CERTIFICATE MeuNOVOCertificado123
+WITH PASSWORD = 'SENHA@1234forteAQU1'
+GO
+
+SELECT iduser, [LOGIN], senhaaberta = CAST (DECRYPTBYKEY(password) AS varchar(MAX)) FROM users
+GO
+
+CLOSE SYMMETRIC KEY MinhaNovaChave
+
+-- se tentar acessar com a chave fechada
+SELECT iduser, [LOGIN], senhaaberta = CAST (DECRYPTBYKEY(password) AS varchar(MAX)) FROM users
+GO
+
+SELECT * FROM users
+GO
+
+-- FIM Criptografia Simétrica.
+
+/*==================================================================================
+SEGURANÇA: CRIPTOGRAFANDO DADOS EM UM CONTEXTO DE DEV
+Criptografia Simetrica e Assimetrica em nivel de coluna
+A criptografia simetrica é menos segura do que a criptografia assimetrica por que 
+a chave usada para criptografar uma informacao é a mesma para descriptografar,
+entao se a chave for roubada de quem criptograda ou quebrada com ataque força bruta, 
+consegue descriptografar a informacao. 
+A criptografia assimetrica ja usa duas chaves, para criptografar (chave publica) e 
+descriptografar (chave privada) o que torna relaticamente mais segura.
+
+O processo de criptografia assimétrica é o seguinte:
+
+CONCEITUALMENTE...
+1. Um destinatário de dados primeiro cria chaves privadas e públicas (que tem acoplagem unica) e, em seguida, 
+envia a chave pública para um remetente de dados.
+2. O remetente de dados usa a chave pública para criptografar o texto simples em texto CRIPTOGRAFADO.
+3. O remetente envia o texto CRIPTOGRAFADO ao destinatário pela rede.
+4. O destinatário recebe o texto CRIPTOGRAFADO e usa a chave privada para descriptografar os dados 
+   para obter os dados finais do texto simples.
+5. Durante o processo de criptografia assimétrica, as chaves privadas não são transmitidas pelas redes. 
+   Portanto, as chaves privadas não podem ser roubadas, proporcionando maior segurança.
+AGORA, O SQL SERVER VAI TODO ESTE TRABALHO INTERNAMENTE EM NIVEL DE INSTANCIA SQL SERVER.
+
+EX> https://www.mssqltips.com/sqlservertip/1886/sql-server-encryption-symmetric-vs-asymmetric-keys/
+
+- O mesmo usuario que criou a criptografia nao pode descriptografar a nao ser que seja dado direito de
+   visualizacao no banco de dados para ver o dados criptografado
+
+- Os certificados e as chaves assimétricas são formas de usar a criptografia assimétrica. 
+  Os certificados são freqüentemente usados como 
+  contêineres para chaves assimétricas porque podem conter mais informações, como datas de expiração e emissores.
+
+- Na chave assimétrica, o usuário que faz a criptografia dos dados pode não conseguir fazer
+  a descriptografia, esse não é o caso ao usar uma chave simétrica em que o mesmo nível de permissão 
+  é necessário para criptografar e descriptografar os dados.
+
+-- Criptografia ASSimetrica 
+==================================================================================*/
+
+-- VAMOS AO NOSSO LABORATORIO...
+
+-- Passo 1. Vamos criar um banco de dados novo para nosso laboratório.
+USE master
+GO
+IF DB_ID('bancotesteassimetrico') IS NOT NULL
+    DROP DATABASE [bancotesteassimetrico]
+GO
+CREATE DATABASE [bancotesteassimetrico]
+GO
+
+-- Passo 2. Vamos criar tabela
+USE [bancotesteassimetrico]
+GO
+IF OBJECT_ID('dbo.Customerxyz', 'U') IS NOT NULL
+    DROP TABLE dbo.Customerxyz
+CREATE TABLE dbo.Customerxyz
+(
+ClienteId      INT IDENTITY(1,1)    NOT NULL PRIMARY KEY,
+ClienteNome     VARCHAR(50)            NULL,
+ClienteTelefone    VARCHAR(15)         NULL
+);
+
+-- Inserir dados
+INSERT INTO dbo.Customerxyz
+VALUES ('ana paulA','566432514')
+,('pedro ambrosio','13545454')
+,('maria rita','5545454')
+GO
+
+-- Verificando os dados inseridos
+SELECT * 
+FROM dbo.Customerxyz
+GO
+
+-- Passo 3. Criando a Service Master Key sobre a Master Database (instancia do sql server)
+USE MASTER
+GO
+IF NOT EXISTS(
+    SELECT *
+    FROM sys.symmetric_keys
+    WHERE name = '##MS_ServiceMasterKey##')
+BEGIN
+    CREATE MASTER KEY ENCRYPTION BY 
+    PASSWORD = 'MSSQLSERVICEMasterKey!@'
+END;
+GO
+
+-- Passo 4. Criando a Master Key sobre o banco de dados do usuário (guardado copia na master e no banco do usuario)
+
+USE [bancotesteassimetrico]
+GO
+IF NOT EXISTS (SELECT * 
+                FROM sys.symmetric_keys 
+                WHERE name LIKE '%MS_DatabaseMasterKey%')
+BEGIN        
+    CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'PASSDBMasterKey_bancotesteassimetrico_@3*';
+END
+GO
+
+-- Passo 5. Sob o banco de dados do usuario, criar a chave assimetrica e criptografar a chave com uma senha.
+
+USE [bancotesteassimetrico]
+GO
+IF NOT EXISTS (SELECT * 
+                FROM sys.asymmetric_keys 
+                WHERE name = 'Assimkey_bancotesteassimetrico')
+BEGIN
+    CREATE ASYMMETRIC KEY Assimkey_bancotesteassimetrico
+    WITH ALGORITHM = RSA_2048 
+    ENCRYPTION BY PASSWORD = 'senha4@Assimetricakey'
+END
+GO
+
+-- Verificar chave assimetrica criada
+USE [bancotesteassimetrico]
+GO
+SELECT *
+FROM  sys.asymmetric_keys
+
+-- Voce pode verificar a chave assimetrica criada no SSMS 
+-- Expanda o banco de dados [bancotesteassimetrico] e selecione Security > Asymmetric Keys 
+
+-- Passo 6. Alterado a estrutura da nossa tabela. Vamos criar um novo campo para guardar o dado telefone criptografado
+USE [bancotesteassimetrico]
+GO 
+ALTER TABLE dbo.Customerxyz
+ADD telefonecriptografado varbinary(MAX) NULL
+GO
+
+-- Passo 7. Vamos inserir dados de telefone criptografado neste campo novo
+USE [bancotesteassimetrico]
+GO 
+UPDATE cliente
+SET telefonecriptografado  = ENCRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), ClienteTelefone)
+FROM dbo.Customerxyz AS cliente;
+GO
+SELECT * FROM dbo.Customerxyz
+
+-- Ver dados criptografados
+-- Depois que os números de telefone são criptografados em texto CRIPTOGRAFADO, temos que usar a função DecryptByAsymKey para descriptografá-los em texto simples. 
+-- Vamos ver se podemos descriptografar com sucesso o campo telefonecriptografado 
+
+-- Passo 8. Lendo o dado criptografado
+USE [bancotesteassimetrico]
+GO 
+
+-- Vanos tentar ler o telefone original, criptografado e descriptografado
+SELECT *, telefoneDescriptografado = CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey'))
+FROM dbo.Customerxyz
+GO
+
+-- Vamos agora inserir dados e criptografar o dado
+
+-- Passo 9. Inserindo dados criptografado
+USE [bancotesteassimetrico]
+GO 
+INSERT INTO dbo.Customerxyz (ClienteNome, ClienteTelefone, telefonecriptografado)
+VALUES ('MARIA RITA NOVO', '54545454444', ENCRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), '54545454444'));  
+GO
+
+SELECT *, telefoneDescriptografado = CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey'))
+FROM dbo.Customerxyz
+GO
+
+-- Passo 10. Vamos tentar atualizar um dado
+USE [bancotesteassimetrico]
+GO 
+UPDATE AAA
+SET telefonecriptografado = ENCRYPTBYASYMKEY( ASYMKEY_ID('Assimkey_bancotesteassimetrico'), '9999999999')
+FROM dbo.Customerxyz AS AAA
+WHERE CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey')) = '54545454444'
+
+SELECT *, telefoneDescriptografado = CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey'))
+FROM dbo.Customerxyz
+GO
+
+-- Passo 11. Vamos agora remover a coluna do telefone que nao esta criptografada
+USE [bancotesteassimetrico]
+GO 
+ALTER TABLE dbo.Customerxyz
+DROP COLUMN  ClienteTelefone
+GO
+
+SELECT 
+    *
+FROM dbo.Customerxyz
+GO
+
+-- Passo 12. Vamos criar um novo usuário e simular acesso com este usuario para verificar se ele conseguira ter acesso ao dado sem passar as chaves e a senha
+USE [bancotesteassimetrico]
+GO 
+CREATE LOGIN userteste
+    WITH PASSWORD=N'123', CHECK_POLICY = OFF
+GO
+CREATE USER userteste FOR LOGIN userteste
+
+GRANT SELECT ON OBJECT::dbo.Customerxyz TO userteste
+GO
+
+-- Passo 13. Vamos simular acesso com este novo usuario e verificar se ele tem acesso ao telefone
+USE [bancotesteassimetrico]
+GO
+EXECUTE AS USER = 'userteste';  
+SELECT *, TelefoneDescriptografado = CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey'))
+FROM dbo.Customerxyz
+REVERT; 
+GO
+
+-- Concessão de permissão a um novo usuário
+-- O usuário recém-adicionado não tem permissão para visualizar uma coluna criptografada. 
+-- Para conceder permissão a um usuário recém-adicionado para visualizar dados em uma coluna criptografada, temos que dar as devidas permissoes:
+
+-- Passo 14. Garantindo acesso a um novo usuario para campo criptografado
+USE [bancotesteassimetrico]
+GO
+GRANT VIEW DEFINITION ON 
+    ASYMMETRIC KEY::[Assimkey_bancotesteassimetrico] TO [userteste];
+GO
+GRANT CONTROL ON 
+    ASYMMETRIC KEY::[Assimkey_bancotesteassimetrico] TO [userteste];
+GO
+
+-- Passo 15. Vamos novamente simular acesso com este novo usuario e verificar se ele tem acesso ao telefone
+USE [bancotesteassimetrico]
+GO
+EXECUTE AS USER = 'userteste';  
+SELECT *, TelefoneDescriptografado = CONVERT(CHAR(11), DECRYPTBYASYMKEY(ASYMKEY_ID('Assimkey_bancotesteassimetrico'), telefonecriptografado, N'senha4@Assimetricakey'))
+FROM dbo.Customerxyz
+GO
+REVERT
+GO
+
+-- FIM Criptografia Assimetrica
+
+
+/*==================================================================================
+SEGURANÇA: CRIPTOGRAFANDO DADOS EM UM CONTEXTO DE DEV
+HASH
+- Nao é criptografia e nao tem chave para descriptografar
+- Método mais seguro para proteger senhas por exemplo
+==================================================================================*/
+
+USE CLIENTES
+GO
+
+-- Exemplo de geração de hash:
+select hashbytes('md5', 'senha-do-josue')
+ 
+-- Comparando hashes
+declare @Pass varchar(50) = 'minha_senha'
+PRINT 'Pass..........: ' + @Pass
+PRINT 'Hash md2.......: ' + convert(varchar(1000), hashbytes('md2', @Pass), 2) 
+
+PRINT 'Hash md4.......: ' + convert(varchar(1000), hashbytes('md4', @Pass), 2)
+
+PRINT 'Hash md5.......: ' + convert(varchar(1000), hashbytes('md5', @Pass), 2)
+
+PRINT 'Hash sha1......: ' + convert(varchar(1000), hashbytes('sha1', @Pass), 2)
+
+PRINT 'Hash sha2_256..: ' + convert(varchar(1000), hashbytes('sha2_256', @Pass), 2)
+
+PRINT 'Hash sha2_512..: ' + convert(varchar(1000), hashbytes('sha2_512', @Pass), 2)
+ 
+-- Vamos criar tabela para armazenar pass com hash
+create table senhas_com_hash (
+    usr varchar(30) not null primary key,
+    senha varbinary(1000) not null
+)
+ 
+-- inserindo as senhas
+insert into senhas_com_hash values ('Pedro', hashbytes('sha2_512', 'senhapedro'))
+insert into senhas_com_hash  values ('ana', hashbytes('sha2_512', 'senhaana'))
+
+select * from senhas_com_hash
+go
+ 
+ 
+-- vamos simular acesso
+declare @usuario varchar(100) = 'Pedro'
+declare @senha varchar(300) = 'aqui a senha simulada na tela do sistema'
+if hashbytes('sha2_512', @senha) = (select senha from senhas_com_hash where usr = @usuario)
+    print 'Acesso OK'
+else
+    print 'Acesso NEGADO'
+
+-- vamos simular acesso
+declare @usuario2 varchar(100) = 'Pedro'
+declare @senha2 varchar(300) = 'senhapedro'
+if hashbytes('sha2_512', @senha2) = (select senha from senhas_com_hash where usr = @usuario2)
+    print 'Acesso OK'
+else
+    print 'Acesso NEGADO'
+ 

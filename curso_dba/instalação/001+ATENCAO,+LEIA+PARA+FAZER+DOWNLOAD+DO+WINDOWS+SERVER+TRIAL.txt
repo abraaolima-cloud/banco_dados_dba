@@ -1,0 +1,35 @@
+
+Caro(a) Aluno(a), como a Microsoft sempre muda as paginas para baixar o instalador do Windows Server, resolvi disponibilizar
+o instalador em um google drive. Segue os passos abaixo para baixar o instalador do Windows Server Trial.
+
+DOWNLOAD WINDOWS SERVER
+
+Link para download do windows server 2019. Abra-o em um brownser (navegador internet).
+
+https://drive.google.com/drive/folders/16sY421elo3i7ReJgSCNwwFiq-yiiAmFu
+
+Favor clicar na imagem do arquivo para iniciar o download do instalador do windows server 2019 trial. Será baixado
+para sua área de download um arquivo 17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso com
+4,93 GB (5.296.713.728 bytes).
+
+O download poderá demorar, dependendo da sua internet. Após realizado o download, poderá copiar o arquivo para outro
+local ou deixar na área de download.
+
+**********
+ATENCAO, ATENCAO. NAO INSTALE O WINDOWS SERVER NA SUA MAQUINA PESSOAL, SENAO VOCE VAI SUBSTITUIR SEU WINDOWS DESKTOP PELO WINDOWS SERVER. 
+VOCE IRA INSTALAR O WINDOWS SERVER QUE BAIXOU DENTRO DE UMA MAQUINA VIRTUAL, QUE AINDA IREMOS CRIAR NAS PROXIMAS AULAS.
+**********
+
+Na aula onde eu explico como instalar o Windows Server, dentro do VirtualBox da Oracle, aponte para este arquivo
+para iniciar a instalação do Windows Server.
+
+
+atenciosamente
+Sandro Servino
+http://sandroservino.com.br/
+
+
+
+---------------------------------------------------------------------------------------------------------------
+
+
